@@ -59,6 +59,7 @@ final: prev: with final;
   inherit (cardanoNodeHaskellPackages.cardano-node.components.exes) cardano-node;
   inherit (cardanoNodeHaskellPackages.cardano-cli.components.exes) cardano-cli;
   inherit (cardanoNodeHaskellPackages.cardano-topology.components.exes) cardano-topology;
+  inherit (cardanoNodeHaskellPackages.cardano-tx-generator.components.exes) cardano-tx-generator;
   inherit (cardanoNodeHaskellPackages.bech32.components.exes) bech32;
   inherit (cardanoNodeHaskellPackages.cardano-submit-api.components.exes) cardano-submit-api;
   cardano-node-profiled = cardanoNodeProfiledHaskellPackages.cardano-node.components.exes.cardano-node;

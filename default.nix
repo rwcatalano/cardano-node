@@ -27,7 +27,7 @@ let
       cardano-node cardano-node-profiled cardano-node-eventlogged
       cardano-cli db-converter cardano-ping
       scripts environments dockerImage submitApiDockerImage bech32;
-
+      cardano-tx-generator
     nixosTests = recRecurseIntoAttrs nixosTests;
 
     # so that eval time gc roots are cached (nix-tools stuff)
