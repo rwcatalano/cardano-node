@@ -60,8 +60,8 @@ import qualified Ouroboros.Consensus.Cardano.Block as Consensus
 import qualified Ouroboros.Consensus.Cardano.ByronHFC as Consensus
 import qualified Ouroboros.Consensus.HardFork.Combinator as Consensus
 import qualified Ouroboros.Consensus.HardFork.Combinator.Degenerate as Consensus
-import qualified Ouroboros.Consensus.Shelley.ShelleyHFC as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as Consensus
+import qualified Ouroboros.Consensus.Shelley.ShelleyHFC as Consensus
 
 import qualified Cardano.Chain.Block as Byron
 import qualified Cardano.Chain.UTxO as Byron
@@ -129,6 +129,9 @@ instance Show (Block era) where
         . showsPrec 11 block
         )
 
+    showsPrec _ (ShelleyBlock ShelleyBasedEraAlonzo _) =
+      error "Show (Block era): Alonzo not implemented yet"
+
 getBlockTxs :: forall era . Block era -> [Tx era]
 getBlockTxs (ByronBlock Consensus.ByronBlock { Consensus.byronBlockRaw }) =
     case byronBlockRaw of
@@ -144,6 +147,8 @@ getBlockTxs (ShelleyBlock shelleyEra Consensus.ShelleyBlock{Consensus.shelleyBlo
       ShelleyBasedEraShelley -> go
       ShelleyBasedEraAllegra -> go
       ShelleyBasedEraMary    -> go
+      ShelleyBasedEraAlonzo  ->
+        error "getBlockTxs: Alonzo era not implemented yet"
   where
     go :: Consensus.ShelleyBasedEra (ShelleyLedgerEra era) => [Tx era]
     go = case shelleyBlockRaw of Shelley.Block _header (Shelley.TxSeq txs) -> [ShelleyTx shelleyEra x | x <- toList txs]
@@ -193,6 +198,9 @@ fromConsensusBlock CardanoMode =
         BlockInMode (ShelleyBlock ShelleyBasedEraMary b')
                      MaryEraInCardanoMode
 
+      Consensus.BlockAlonzo b' ->
+        BlockInMode (ShelleyBlock ShelleyBasedEraAlonzo b')
+                     AlonzoEraInCardanoMode
 
 -- ----------------------------------------------------------------------------
 -- Block headers
@@ -224,6 +232,7 @@ getBlockHeader (ShelleyBlock shelleyEra block) = case shelleyEra of
   ShelleyBasedEraShelley -> go
   ShelleyBasedEraAllegra -> go
   ShelleyBasedEraMary -> go
+  ShelleyBasedEraAlonzo -> error "getBlockHeader: Alonzo era not implemented yet"
   where
     go :: Consensus.ShelleyBasedEra (ShelleyLedgerEra era) => BlockHeader
     go = BlockHeader headerFieldSlot (HeaderHash hashSBS) headerFieldBlockNo

@@ -465,6 +465,7 @@ instance IsShelleyBasedEra era => HasTextEnvelope (ScriptInEra era) where
         ShelleyBasedEraShelley -> "ScriptInEra ShelleyEra"
         ShelleyBasedEraAllegra -> "ScriptInEra AllegraEra"
         ShelleyBasedEraMary    -> "ScriptInEra MaryEra"
+        ShelleyBasedEraAlonzo  -> "ScriptInEra AlonzoEra"
 
 
 -- | Check if a given script language is supported in a given era, and if so
@@ -924,6 +925,7 @@ instance IsCardanoEra era => FromJSON (ScriptInEra era) where
               Just s' -> ScriptInEra SimpleScriptV1InMary
                                      (SimpleScript SimpleScriptV1 s')
 
+      AlonzoEra -> error "JSON support for Plutus scripts not implemented"
 
 instance IsSimpleScriptLanguage lang => FromJSON (SimpleScript lang) where
   parseJSON = parseSimpleScript simpleScriptVersion
