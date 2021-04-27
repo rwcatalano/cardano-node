@@ -20,11 +20,6 @@ import Data.Text (pack)
 import           Cardano.Prelude hiding (TypeError, show)
 import Control.Monad.Trans.Except.Extra (firstExceptT)
 
-import           Ouroboros.Consensus.Block.Abstract (BlockProtocol)
-
-import qualified Ouroboros.Consensus.Cardano as Consensus
-import           Ouroboros.Consensus.Cardano (Protocol, ProtocolCardano)
-
 import           Ouroboros.Consensus.Config
                    ( configBlock, configCodec)
 import           Ouroboros.Consensus.Config.SupportsNode
@@ -39,19 +34,20 @@ import qualified Cardano.Chain.Genesis as Genesis
 import           Cardano.Node.Configuration.Logging
 import           Cardano.Node.Configuration.POM
 import           Cardano.Node.Protocol.Cardano
+import           Cardano.Node.Protocol.Types (SomeConsensusProtocol)
 import           Cardano.Node.Types
 
 import Cardano.Benchmarking.DSL
 import Cardano.Benchmarking.Tracer
 
 import Cardano.Benchmarking.GeneratorTx.NodeToNode
-import Cardano.Benchmarking.OuroborosImports (CardanoBlock, getGenesis, protocolToTopLevelConfig, protocolToNetworkId)
+import Cardano.Benchmarking.OuroborosImports (getGenesis, protocolToTopLevelConfig, protocolToNetworkId)
 
 import qualified Cardano.Benchmarking.GeneratorTx as GeneratorTx
 import qualified Cardano.Benchmarking.GeneratorTx.Tx as GeneratorTx
 
 mangleLocalProtocolDefinition ::
-     Consensus.Protocol IO CardanoBlock ptcl
+     SomeConsensusProtocol
   -> IOManager
   -> SocketPath
   -> BenchTracers
@@ -122,22 +118,23 @@ runBenchmarkScriptWith iocp logConfigFile socketFile script = do
 
 startProtocol
   :: FilePath
-  -> ExceptT CliError IO (LoggingLayer, Protocol IO CardanoBlock ProtocolCardano)
+  -> ExceptT CliError IO (LoggingLayer, SomeConsensusProtocol)
 startProtocol logConfigFile = do
   nc <- liftIO $ mkNodeConfig logConfigFile
   case ncProtocolConfig nc of
     NodeProtocolConfigurationByron _    -> error "NodeProtocolConfigurationByron not supported"
     NodeProtocolConfigurationShelley _  -> error "NodeProtocolConfigurationShelley not supported"
     NodeProtocolConfigurationCardano byC shC hfC -> do
-        ptcl :: Protocol IO CardanoBlock ProtocolCardano <- firstExceptT (ProtocolInstantiationError . pack . show) $
-                  mkConsensusProtocolCardano byC shC hfC Nothing
+        ptcl :: SomeConsensusProtocol <- firstExceptT (ProtocolInstantiationError . pack . show) $
+                  mkSomeConsensusProtocolCardano byC shC hfC Nothing
+        
         loggingLayer <- mkLoggingLayer nc ptcl
         return (loggingLayer, ptcl)
  where
-  mkLoggingLayer :: NodeConfiguration -> Protocol IO blk (BlockProtocol blk) -> ExceptT CliError IO LoggingLayer
+  mkLoggingLayer :: NodeConfiguration -> SomeConsensusProtocol -> ExceptT CliError IO LoggingLayer
   mkLoggingLayer nc ptcl =
     firstExceptT (\(ConfigErrorFileNotFound fp) -> ConfigNotFoundError fp) $
-      createLoggingLayer (pack $ showVersion version) nc ptcl
+    createLoggingLayer (pack $ showVersion version) nc ptcl
 
   mkNodeConfig :: FilePath -> IO NodeConfiguration
   mkNodeConfig logConfig = do

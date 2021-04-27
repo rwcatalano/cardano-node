@@ -66,7 +66,7 @@ mkGenesisTransaction key _payloadSize ttl fee txins txouts
     Left err -> error $ show err
  where
   txBodyContent = TxBodyContent {
-      txIns = txins
+      txIns = zip txins $ repeat $ BuildTxWith $ KeyWitness $ KeyWitnessForSpending
     , txOuts = txouts
     , txFee = fees
     , txValidityRange = (TxValidityNoLowerBound, validityUpperBound)
@@ -101,7 +101,7 @@ mkTransaction key metadata ttl fee txins txouts
     Left err -> error $ show err
  where
   txBodyContent = TxBodyContent {
-      txIns = txins
+      txIns = zip txins $ repeat $ BuildTxWith $ KeyWitness $ KeyWitnessForSpending
     , txOuts = txouts
     , txFee = mkFee fee
     , txValidityRange = (TxValidityNoLowerBound, mkValidityUpperBound ttl)

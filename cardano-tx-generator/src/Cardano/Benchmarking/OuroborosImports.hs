@@ -5,8 +5,6 @@
 module Cardano.Benchmarking.OuroborosImports
   (
     CardanoBlock
-  , Consensus.Protocol
-  , Consensus.ProtocolCardano
   , LocalSubmitTx
   , LoggingLayer
   , PaymentKey
@@ -36,6 +34,7 @@ import           Ouroboros.Consensus.Shelley.Eras (StandardShelley)
 import           Ouroboros.Network.Protocol.LocalTxSubmission.Type (SubmitResult (..))
 
 import           Cardano.Node.Configuration.Logging (LoggingLayer)
+import           Cardano.Node.Protocol.Types ( SomeConsensusProtocol(..))
 
 import           Cardano.Api.Shelley (CardanoMode)
 import           Cardano.CLI.Types (SigningKeyFile)
@@ -44,25 +43,34 @@ import           Cardano.Api (NetworkId(..), LocalNodeConnectInfo(..), Consensus
                              , TxInMode, TxValidationErrorInMode
                              , SigningKey, PaymentKey
                              , submitTxToNodeLocal)
+import           Cardano.Api.Protocol.Types (BlockType(..), ProtocolInfoArgs(..), protocolInfo)
+
 import           Shelley.Spec.Ledger.Genesis (ShelleyGenesis)
 
 type CardanoBlock = Consensus.CardanoBlock StandardCrypto
 
-getGenesis :: Consensus.Protocol IO CardanoBlock ptcl -> ShelleyGenesis StandardShelley
-getGenesis
-  (Consensus.ProtocolCardano
-  _
-  Consensus.ProtocolParamsShelleyBased{Consensus.shelleyBasedGenesis}
-  _ _ _ _ _ _ ) = shelleyBasedGenesis
+toProtocolInfo :: SomeConsensusProtocol -> ProtocolInfo IO CardanoBlock
+toProtocolInfo (SomeConsensusProtocol CardanoBlockType info) = protocolInfo info
+toProtocolInfo _ = error "toProtocolInfo unkown protocol"
 
-protocolToTopLevelConfig :: Consensus.Protocol IO CardanoBlock ptcl -> TopLevelConfig CardanoBlock
+getGenesis :: SomeConsensusProtocol -> ShelleyGenesis StandardShelley
+getGenesis (SomeConsensusProtocol CardanoBlockType info) = shelleyBasedGenesis
+ where
+  (ProtocolInfoArgsCardano
+   _
+   Consensus.ProtocolParamsShelleyBased{Consensus.shelleyBasedGenesis}
+    _ _ _ _ _ _ ) = info
+getGenesis (SomeConsensusProtocol _ _ ) = error "getGenesis (SomeConsensusProtocol _ _ ) unknown protocol"
+
+protocolToTopLevelConfig :: SomeConsensusProtocol -> TopLevelConfig CardanoBlock
 protocolToTopLevelConfig ptcl = pInfoConfig
- where ProtocolInfo{pInfoConfig} = Consensus.protocolInfo ptcl
+ where
+   ProtocolInfo {pInfoConfig} = toProtocolInfo ptcl
 
-protocolToCodecConfig :: Consensus.Protocol IO CardanoBlock ptcl -> CodecConfig CardanoBlock
+protocolToCodecConfig :: SomeConsensusProtocol -> CodecConfig CardanoBlock
 protocolToCodecConfig = configCodec . protocolToTopLevelConfig
 
-protocolToNetworkId :: Consensus.Protocol IO CardanoBlock ptcl -> NetworkId
+protocolToNetworkId :: SomeConsensusProtocol -> NetworkId
 protocolToNetworkId ptcl
   = Testnet $ getNetworkMagic $ configBlock $ protocolToTopLevelConfig ptcl
 

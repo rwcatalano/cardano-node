@@ -19,9 +19,11 @@ import           Data.GADT.Compare.TH (deriveGCompare, deriveGEq)
 import           Data.GADT.Show.TH (deriveGShow)
 
 import           Cardano.Api as Cardano (InAnyCardanoEra(..), Tx)
+import           Cardano.Node.Protocol.Types (SomeConsensusProtocol)
+
 import           Cardano.Benchmarking.Script.Setters as Setters
 import           Cardano.Benchmarking.OuroborosImports as Cardano
-                    ( Protocol, CardanoBlock, ProtocolCardano, LoggingLayer, ShelleyGenesis, StandardShelley
+                    ( LoggingLayer, ShelleyGenesis, StandardShelley
                     , NetworkId, SigningKey, PaymentKey)
 
 import           Cardano.Benchmarking.Tracer as Core (BenchTracers)
@@ -33,7 +35,7 @@ type Fund = (Core.Fund, SigningKey PaymentKey)
 data Store v where
   User         :: Setters.Tag x -> Store x
   LoggingLayer :: Store LoggingLayer
-  Protocol     :: Store (Cardano.Protocol IO CardanoBlock ProtocolCardano)
+  Protocol     :: Store SomeConsensusProtocol
   BenchTracers :: Store Core.BenchTracers
   NetworkId    :: Store Cardano.NetworkId -- could be in Setters (just need JSON instance)
   Genesis      :: Store (ShelleyGenesis StandardShelley)
