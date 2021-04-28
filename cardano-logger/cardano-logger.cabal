@@ -1,0 +1,83 @@
+cabal-version:       2.4
+name:                cardano-logger
+version:             0.1.0
+synopsis:            See README for more info
+description:         See README for more info
+license:             Apache-2.0
+license-file:        LICENSE
+copyright:           2021 Input Output (Hong Kong) Ltd.
+author:              IOHK
+maintainer:          operations@iohk.io
+build-type:          Simple
+extra-doc-files:     README.md
+                     CHANGELOG.md
+
+common common-options
+  build-depends:       base >=4.12 && <5
+
+  ghc-options:         -Wall
+                       -Wcompat
+                       -Widentities
+                       -Wincomplete-uni-patterns
+                       -Wincomplete-record-updates
+  if impl(ghc >= 8.0)
+    ghc-options:       -Wredundant-constraints
+  if impl(ghc >= 8.2)
+    ghc-options:       -fhide-source-paths
+  if impl(ghc >= 8.4)
+    ghc-options:       -Wmissing-export-lists
+                       -Wpartial-fields
+
+  default-language:    Haskell2010
+
+library
+  import:              common-options
+  hs-source-dirs:      src
+
+  exposed-modules:     Cardano.Logger.Acceptors
+                       Cardano.Logger.CLI
+                       Cardano.Logger.Configuration
+                       Cardano.Logger.Handlers
+                       Cardano.Logger.Run
+                       Cardano.Logger.Types
+
+                       Cardano.Logger.Handlers.Logs.Run
+                       Cardano.Logger.Handlers.Metrics.Run
+
+  other-modules:       Paths_cardano_logger
+
+  build-depends:         aeson
+                       , async
+                       , bytestring
+                       , cborg
+                       , contra-tracer
+                       , ekg-core
+                       , ekg-forward
+                       , iohk-monitoring
+                       , network
+                       , optparse-applicative
+                       , ouroboros-network-framework
+                       , serialise
+                       , stm
+                       , text
+                       , time
+                       , trace-forward
+                       , unordered-containers
+
+executable cardano-logger
+  hs-source-dirs:      app
+
+  main-is:             cardano-logger.hs
+
+  other-modules:       Paths_cardano_logger
+
+  build-depends:         base
+                       , cardano-logger
+                       , optparse-applicative
+                       , text
+
+  default-language:    Haskell2010
+  ghc-options:         -Wall
+                       -threaded
+                       -rtsopts
+                       -with-rtsopts=-T

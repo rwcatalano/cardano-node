@@ -67,15 +67,9 @@ launchForwarders
   -> IO ()
 launchForwarders endpoint benchFillFreq configs =
   try (launchForwarders' endpoint benchFillFreq configs) >>= \case
-    Left (_e :: SomeException) -> do
-      threadDelay $ toMicroSecs howOftenToReconnect
+    Left (_e :: SomeException) ->
       launchForwarders endpoint benchFillFreq configs
     Right _ -> return ()
- where
-  toMicroSecs :: NominalDiffTime -> Int
-  toMicroSecs dt = fromEnum dt `div` 1000000
-  -- Actually we could take second frequency as well, they are equal in this demo.
-  howOftenToReconnect = EKGF.reConnectFrequency $ fst configs
 
 launchForwarders'
   :: HowToConnect

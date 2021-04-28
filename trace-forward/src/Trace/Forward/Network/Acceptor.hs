@@ -9,7 +9,6 @@ module Trace.Forward.Network.Acceptor
 
 import           Codec.CBOR.Term (Term)
 import qualified Codec.Serialise as CBOR
-import           Control.Concurrent (threadDelay)
 import           Control.Concurrent.Async (async, wait, waitAnyCancel)
 import           Control.Concurrent.STM.TBQueue (TBQueue)
 import           Control.Monad (void, unless)
@@ -20,7 +19,6 @@ import qualified Data.ByteString.Lazy as LBS
 import           Data.Functor ((<&>))
 import           Data.IORef (readIORef)
 import qualified Data.Text as T
-import           Data.Time.Clock (NominalDiffTime)
 import           Data.Typeable (Typeable)
 import           Data.Void (Void)
 import qualified Network.Socket as Socket
@@ -155,14 +153,7 @@ acceptorActions config@AcceptorConfiguration{..} loQueue False =
   Acceptor.SendMsgRequest TokBlocking whatToRequest $ \reply -> do
     writeLogObjectsToQueue reply loQueue
     actionOnReply $ logObjectsFromReply reply
-    threadDelay $ toMicroSecs requestFrequency
     readIORef shouldWeStop <&> acceptorActions config loQueue
- where
-  -- TODO: temporary function, should be rewritten
-  -- (we have to take into account actual time of 'actionOnReply'
-  -- as well as actual time of getting the reply from the forwarder).
-  toMicroSecs :: NominalDiffTime -> Int
-  toMicroSecs dt = fromEnum dt `div` 1000000
 
 acceptorActions AcceptorConfiguration{..} _ True =
   Acceptor.SendMsgDone
