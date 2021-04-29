@@ -48,5 +48,13 @@
   "slotsPerKESPeriod": 129600,
   "slotLength": 1,
   "maxKESEvolutions": 62,
-  "securityParam": 36
+  "securityParam": 36,
+
+  "alonzoAdaPerUTxOWord": 42,
+  "alonzoExecutionPrices": 42,
+  "alonzoMaxTxExUnits": 42,
+  "alonzoMaxBlockExUnits": 42,
+  "alonzoMaxMultiAssetSize": 42,
+  "alonzoCostModel": "configuration/cardano/alonzo/shelley_qa_cost-model.json"
+
 }
