@@ -238,11 +238,9 @@ instance FromJSON PartialNodeConfiguration where
                                       ++ "AlonzoGenesisFile or GenesisFile"
             (Just _, Just _)   -> fail $ "Specify either AlonzoGenesisFile"
                                       ++ "or GenesisFile, but not both"
-        npcAlonzoGenesisFileHash <- v .:? "AlonzoGenesisHash"
 
         pure NodeAlonzoProtocolConfiguration {
                npcAlonzoGenesisFile
-             , npcAlonzoGenesisFileHash
              }
 
       parseHardForkProtocol v = do

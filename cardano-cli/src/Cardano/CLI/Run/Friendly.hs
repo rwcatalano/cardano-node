@@ -50,6 +50,8 @@ friendlyTxBody era txbody =
         addAuxData aux $ friendlyTxBodyAllegra body
       ShelleyTxBody ShelleyBasedEraMary body _scripts aux ->
         addAuxData aux $ friendlyTxBodyMary body
+      ShelleyTxBody ShelleyBasedEraAlonzo _ _ _ ->
+        error "friendlyTxBody: Alonzo not implemented yet"
 
 addAuxData :: Show a => Maybe a -> Object -> Object
 addAuxData = HashMap.insert "auxiliary data" . maybe Null (toJSON . textShow)

@@ -79,7 +79,9 @@ mkSomeConsensusProtocolCardano NodeByronProtocolConfiguration {
                              npcShelleyGenesisFile,
                              npcShelleyGenesisFileHash
                            }
-                           _AlonzoProtocolConfig
+                           NodeAlonzoProtocolConfiguration {
+                             npcAlonzoGenesisFile
+                           }
                            NodeHardForkProtocolConfiguration {
                              npcTestShelleyHardForkAtEpoch,
                              npcTestShelleyHardForkAtVersion,
@@ -110,6 +112,8 @@ mkSomeConsensusProtocolCardano NodeByronProtocolConfiguration {
       firstExceptT CardanoProtocolInstantiationErrorShelley $
         Shelley.readLeaderCredentials files
 
+    -- AlonzoGenesis is the translation context see: TranslationContext type family
+    _alonzoGenesis <- readAlonzoGenesis npcShelleyGenesisFile
     --TODO: all these protocol versions below are confusing and unnecessary.
     -- It could and should all be automated and these config entries eliminated.
     return $!
@@ -171,10 +175,10 @@ mkSomeConsensusProtocolCardano NodeByronProtocolConfiguration {
             ProtVer 4 0
         }
         Consensus.ProtocolParamsAlonzo {
-          -- This is /not/ the Mary protocol version. It is the protocol
+          -- This is /not/ the Alonzo protocol version. It is the protocol
           -- version that this node will declare that it understands, when it
-          -- is in the Mary era. Since Mary is currently the last known
-          -- protocol version then this is also the Mary protocol version.
+          -- is in the Alonzo era. Since Alonzo is currently the last known
+          -- protocol version then this is also the Alonzo protocol version.
           alonzoProtVer =
             ProtVer 4 0,
           alonzoTranslationContext = 42

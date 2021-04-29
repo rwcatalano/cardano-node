@@ -59,6 +59,8 @@ import           Ouroboros.Consensus.Shelley.Eras (StandardShelley)
 import           Ouroboros.Consensus.Shelley.Node (ShelleyGenesisStaking (..))
 import           Ouroboros.Consensus.Shelley.Protocol (StandardCrypto)
 
+import qualified Cardano.Ledger.Alonzo.Translation as Alonzo
+import           Cardano.Ledger.Alonzo.Translation (AlonzoGenesis(..))
 import qualified Shelley.Spec.Ledger.API as Ledger
 import qualified Shelley.Spec.Ledger.BaseTypes as Ledger
 import           Cardano.Ledger.Coin (Coin (..))
@@ -919,3 +921,79 @@ runGenesisHashFile (GenesisFile fpath) = do
    let gh :: Crypto.Hash Crypto.Blake2b_256 ByteString
        gh = Crypto.hashWith id content
    liftIO $ Text.putStrLn (Crypto.hashToTextAsHex gh)
+
+--
+-- Alonzo genesis
+--
+
+-- | In order to avoid introducing a separate Alonzo genesis file, we
+-- have added additional fields to the Shelley genesis that are required
+-- when hardforking to Alonzo. Unfortunately the 'ShelleyGenesis' 'FromJSON'
+-- instance exists in cardano-ledger-specs so we must duplicate code for now.
+
+readAlonzoGenesis
+  :: FilePath
+  -> ExceptT ShelleyGenesisCmdError IO Alonzo.AlonzoGenesis
+readAlonzoGenesis fpath =
+  alonzoGenWrapper <- readAndDecode
+                       `catchError` \err ->
+                         case err of
+                           ShelleyGenesisCmdGenesisFileError (FileIOError _ ioe)
+                             | isDoesNotExistError ioe -> error "Shelley genesis file not found. TODO: Setup defaults"
+                           _                           -> left err
+  createAlonzoGenesis alonzoGenWrapper
+
+ where
+  readAndDecode :: ExceptT ShelleyGenesisCmdAddressCmdError IO AlonzoGenWrapper
+  readAndDecode = do
+      lbs <- handleIOExceptT (ShelleyGenesisCmdGenesisFileError . FileIOError fpath) $ LBS.readFile fpath
+      firstExceptT (ShelleyGenesisCmdAesonDecodeError fpath . Text.pack)
+        . hoistEither $ Aeson.eitherDecode' lbs
+
+
+createAlonzoGenesis :: AlonzoGenWrapper -> ExceptT ShelleyGenesisCmdAddressCmdError IO Alonzo.Genesis
+createAlonzoGenesis (AlonzoGenWrapper costModelFp alonzoGenesis) = do
+  costModel <- readAndDecode
+  alonzoGenesis { Alonzo.costmdls = costModel }
+
+ where
+  readAndDecode :: ExceptT ShelleyGenesisCmdAddressCmdError IO CostModel
+  readAndDecode = do
+      lbs <- handleIOExceptT (ShelleyGenesisCmdGenesisFileError . FileIOError fpath) $ LBS.readFile costModelFp
+      firstExceptT (ShelleyGenesisCmdAesonDecodeError fpath . Text.pack)
+        . hoistEither $ Aeson.eitherDecode' lbs
+
+
+data AlonzoGenWrapper =
+  AlonzoGenWrapper { costModelFp :: FilePath
+                   , genesis :: Alonzo.AlonzoGenesis
+                   }
+
+instance FromJSON AlonzoGenWrapper where
+  parseJSON = withObject "Alonzo Genesis Wrapper" $ \o ->
+                -- NB: This has an empty map for the cost model
+                alonzoGenensis <- parseJSON o :: Aeson.Parser Alonzo.AlonzoGenesis
+                cModelFp <- o .: "alonzoCostModel"
+                return $ AlonzoGenWrapper
+                           { costModelFp = cModelFp
+                           , genesis = alonzoGenensis
+                           }
+
+-- We defer parsing of the cost model so that we can
+-- read it as a filepath. This is to reduce further pollution
+-- of the genesis file.
+instance FromJSON Alonzo.AlonzoGenesis where
+  parseJSON = withObject "Alonzo Genesis" $ \o -> do
+    adaPerWord <- "alonzoAdaPerUTxOWord" .: o
+    execPrices <- "alonzoExecutionPrices" .: o
+    maxTxExUnits <- "alonzoMaxTxExUnits" .: o
+    maxBlockExUnits <- "alonzoMaxBlockExUnits" .: o
+    maxMaSize <- "alonzoMaxMultiAssetSize" .: o
+    return $ Alonzo.AlonzoGenesis
+               { adaPerUTxOWord = adaPerWord
+               , costmdls = mempty
+               , prices = execPrices
+               , maxTxExUnits = maxTxExUnits
+               , maxBlockExUnits = maxBlockExUnits
+               , maxValSize = maxMaSize
+               }

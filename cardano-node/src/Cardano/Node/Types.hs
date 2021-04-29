@@ -269,7 +269,6 @@ data NodeProtocolConfiguration =
 data NodeAlonzoProtocolConfiguration =
        NodeAlonzoProtocolConfiguration
          { npcAlonzoGenesisFile     :: !GenesisFile
-         , npcAlonzoGenesisFileHash :: !(Maybe GenesisHash)
          } deriving (Eq, Show)
 
 
