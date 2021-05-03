@@ -127,10 +127,11 @@ friendlyTxOut (TxOut addr amount) =
       object $ ("address era" .= String "Byron") : common
     AddressInEra (ShelleyAddressInEra _) (ShelleyAddress net cred stake) ->
       object $
-        "address era"         .= String "Shelley"             :
-        "network"             .= net                          :
-        "payment credential"  .= cred                         :
-        "stake reference"     .= friendlyStakeReference stake :
+        [ "address era"         .= String "Shelley"
+        , "network"             .= net
+        , "payment credential"  .= cred
+        , "stake reference"     .= friendlyStakeReference stake
+        ] ++
         common
   where
     common :: [(Text, Aeson.Value)]
