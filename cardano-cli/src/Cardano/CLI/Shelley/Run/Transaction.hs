@@ -921,14 +921,14 @@ runTxGetTxId txfile = do
 
 runTxView :: InputTxFile -> ExceptT ShelleyTxCmdError IO ()
 runTxView txfile = do
-  InAnyCardanoEra _era txbody <-
+  InAnyCardanoEra era txbody <-
     case txfile of
       InputTxBodyFile (TxBodyFile txbodyFile) -> readFileTxBody txbodyFile
       InputTxFile (TxFile txFile) -> do
         InAnyCardanoEra era tx <- readFileTx txFile
         return . InAnyCardanoEra era $ getTxBody tx
   liftIO $
-    case friendlyTxBodyBS txbody of
+    case friendlyTxBodyBS era txbody of
       Right text -> BS.putStr text
       Left err   -> die $ toS err
 

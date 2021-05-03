@@ -5,7 +5,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- | User-friendly pretty-printing for textual user interfaces (TUI)
 module Cardano.CLI.Run.Friendly (friendlyTxBodyBS) where
@@ -14,22 +13,11 @@ import           Cardano.Prelude
 import qualified Prelude
 
 import           Data.Aeson (Value (..), object, toJSON, (.=))
+import qualified Data.Aeson as Aeson
 import           Data.Yaml (array)
 import           Data.Yaml.Pretty (defConfig, encodePretty, setConfCompare)
 
-import           Cardano.Api as Api (AddressInEra (..),
-                   AddressTypeInEra (ByronAddressInAnyEra, ShelleyAddressInEra),
-                   IsCardanoEra (cardanoEra), TxAuxScripts (..), TxBody, TxBodyContent (..),
-                   TxCertificates (..), TxFee (..), TxIn, TxMetadata (..), TxMetadataInEra (..),
-                   TxMetadataValue (..), TxMintValue (..), TxOut (..), TxOutValue (..),
-                   TxUpdateProposal (..), TxValidityLowerBound (..), TxValidityUpperBound (..),
-                   TxWithdrawals (..),
-                   ValidityUpperBoundSupportedInEra (ValidityUpperBoundInShelleyEra), ViewTx,
-                   auxScriptsSupportedInEra, certificatesSupportedInEra, displayError,
-                   getTransactionBodyContent, multiAssetSupportedInEra, serialiseAddress,
-                   serialiseAddressForTxOut, txMetadataSupportedInEra, updateProposalSupportedInEra,
-                   validityLowerBoundSupportedInEra, validityUpperBoundSupportedInEra,
-                   withdrawalsSupportedInEra)
+import           Cardano.Api as Api
 import           Cardano.Api.Byron (Lovelace (..))
 import           Cardano.Api.Shelley (Address (ShelleyAddress), StakeAddress (..))
 import qualified Shelley.Spec.Ledger.API as Shelley
@@ -37,14 +25,13 @@ import qualified Shelley.Spec.Ledger.API as Shelley
 import           Cardano.CLI.Helpers (textShow)
 
 friendlyTxBodyBS
-  :: IsCardanoEra era => Api.TxBody era -> Either Prelude.String ByteString
-friendlyTxBodyBS =
-  fmap (encodePretty $ setConfCompare compare defConfig) . friendlyTxBody
+  :: CardanoEra era -> Api.TxBody era -> Either Prelude.String ByteString
+friendlyTxBodyBS era =
+  fmap (encodePretty $ setConfCompare compare defConfig) . friendlyTxBody era
 
 friendlyTxBody
-  :: forall era
-  .  IsCardanoEra era => Api.TxBody era -> Either Prelude.String Value
-friendlyTxBody txbody =
+  :: CardanoEra era -> Api.TxBody era -> Either Prelude.String Aeson.Value
+friendlyTxBody era txbody =
   case getTransactionBodyContent txbody of
     Right
       TxBodyContent
@@ -81,19 +68,17 @@ friendlyTxBody txbody =
         ++  [ "update proposal" .= friendlyUpdateProposal txUpdateProposal
             | Just _ <- [updateProposalSupportedInEra era]
             ]
-        ++  friendlyValidityRange txValidityRange
+        ++  friendlyValidityRange era txValidityRange
         ++  [ "withdrawals" .= friendlyWithdrawals txWithdrawals
             | Just _ <- [withdrawalsSupportedInEra era]
             ]
     Left err -> Left $ displayError err
-  where
-    era = cardanoEra @era
 
 friendlyValidityRange
-  :: forall era
-  .  IsCardanoEra era
-  => (TxValidityLowerBound era, TxValidityUpperBound era) -> [(Text, Value)]
-friendlyValidityRange = \case
+  :: CardanoEra era
+  -> (TxValidityLowerBound era, TxValidityUpperBound era)
+  -> [(Text, Aeson.Value)]
+friendlyValidityRange era = \case
   ( TxValidityNoLowerBound,
     TxValidityUpperBound ValidityUpperBoundInShelleyEra ttl
     ) ->
@@ -119,11 +104,10 @@ friendlyValidityRange = \case
     | isLowerBoundSupported || isUpperBoundSupported
     ]
   where
-    era = cardanoEra @era
     isLowerBoundSupported = isJust $ validityLowerBoundSupportedInEra era
     isUpperBoundSupported = isJust $ validityUpperBoundSupportedInEra era
 
-friendlyWithdrawals :: TxWithdrawals ViewTx era -> Value
+friendlyWithdrawals :: TxWithdrawals ViewTx era -> Aeson.Value
 friendlyWithdrawals TxWithdrawalsNone = Null
 friendlyWithdrawals (TxWithdrawals _ withdrawals) =
   array
@@ -136,7 +120,7 @@ friendlyWithdrawals (TxWithdrawals _ withdrawals) =
     | (addr@(StakeAddress net cred), amount, _) <- withdrawals
     ]
 
-friendlyTxOut :: TxOut era -> Value
+friendlyTxOut :: TxOut era -> Aeson.Value
 friendlyTxOut (TxOut addr amount) =
   case addr of
     AddressInEra ByronAddressInAnyEra _ ->
@@ -149,52 +133,52 @@ friendlyTxOut (TxOut addr amount) =
         "stake reference"     .= friendlyStakeReference stake :
         common
   where
-    common :: [(Text, Value)]
+    common :: [(Text, Aeson.Value)]
     common =
       [ "address" .= serialiseAddressForTxOut addr
       , "amount"  .= friendlyTxOutValue amount
       ]
 
-friendlyStakeReference :: Shelley.StakeReference crypto -> Value
+friendlyStakeReference :: Shelley.StakeReference crypto -> Aeson.Value
 friendlyStakeReference = \case
   Shelley.StakeRefBase cred -> toJSON cred
   Shelley.StakeRefNull -> Null
   Shelley.StakeRefPtr ptr -> toJSON ptr
 
-friendlyUpdateProposal :: TxUpdateProposal era -> Value
+friendlyUpdateProposal :: TxUpdateProposal era -> Aeson.Value
 friendlyUpdateProposal = \case
   TxUpdateProposalNone -> Null
   TxUpdateProposal _ p -> String $ textShow p
 
-friendlyCertificates :: TxCertificates ViewTx era -> Value
+friendlyCertificates :: TxCertificates ViewTx era -> Aeson.Value
 friendlyCertificates = \case
   TxCertificatesNone    -> Null
   TxCertificates _ cs _ -> toJSON $ map textShow cs
 
-friendlyFee :: TxFee era -> Value
+friendlyFee :: TxFee era -> Aeson.Value
 friendlyFee = \case
   TxFeeImplicit _     -> "implicit"
   TxFeeExplicit _ fee -> friendlyLovelace fee
 
-friendlyLovelace :: Lovelace -> Value
+friendlyLovelace :: Lovelace -> Aeson.Value
 friendlyLovelace (Lovelace value) = String $ textShow value <> " Lovelace"
 
-friendlyMintValue :: TxMintValue ViewTx era -> Value
+friendlyMintValue :: TxMintValue ViewTx era -> Aeson.Value
 friendlyMintValue = \case
   TxMintNone        -> Null
   TxMintValue _ v _ -> toJSON v
 
-friendlyTxOutValue :: TxOutValue era -> Value
+friendlyTxOutValue :: TxOutValue era -> Aeson.Value
 friendlyTxOutValue = \case
   TxOutAdaOnly _ lovelace -> friendlyLovelace lovelace
   TxOutValue _ multiasset -> toJSON multiasset
 
-friendlyMetadata :: TxMetadataInEra era -> Value
+friendlyMetadata :: TxMetadataInEra era -> Aeson.Value
 friendlyMetadata = \case
   TxMetadataNone                   -> Null
   TxMetadataInEra _ (TxMetadata m) -> toJSON $ friendlyMetadataValue <$> m
 
-friendlyMetadataValue :: TxMetadataValue -> Value
+friendlyMetadataValue :: TxMetadataValue -> Aeson.Value
 friendlyMetadataValue = \case
   TxMetaNumber int   -> toJSON int
   TxMetaBytes  bytes -> String $ textShow bytes
@@ -204,10 +188,10 @@ friendlyMetadataValue = \case
       [array [friendlyMetadataValue k, friendlyMetadataValue v] | (k, v) <- m]
   TxMetaText   text  -> toJSON text
 
-friendlyAuxScripts :: TxAuxScripts era -> Value
+friendlyAuxScripts :: TxAuxScripts era -> Aeson.Value
 friendlyAuxScripts = \case
   TxAuxScriptsNone       -> Null
   TxAuxScripts _ scripts -> toJSON scripts
 
-friendlyInputs :: [(TxIn, build)] -> Value
+friendlyInputs :: [(TxIn, build)] -> Aeson.Value
 friendlyInputs = toJSON . map fst
