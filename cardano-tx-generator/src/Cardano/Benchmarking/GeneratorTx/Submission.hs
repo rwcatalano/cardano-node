@@ -343,9 +343,6 @@ txSubmissionClient tr bmtr sub threadIx =
                    stsSent stats + Sent (length toSend)
                  , stsUnavailable =
                    stsUnavailable stats + Unav (length missIds)})
-   , recvMsgKThxBye = do
-       traceWith tr KThxBye
-       void $ submitReport stats
    }
 
   submitReport :: SubmissionThreadStats -> m SubmissionThreadReport

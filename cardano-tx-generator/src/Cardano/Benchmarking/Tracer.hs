@@ -177,7 +177,6 @@ data NodeToNodeSubmissionTrace
   | TxList          Int
 
   | EndOfProtocol
-  | KThxBye
 
 instance ToObject NodeToNodeSubmissionTrace where
   toObject MinimalVerbosity = const emptyObject -- do not log
@@ -195,7 +194,6 @@ instance ToObject NodeToNodeSubmissionTrace where
     IdsListPrompt   sent    -> mkObject [ "kind" .= A.String "IdsListPrompt"
                                         , "sent" .= A.toJSON sent ]
     EndOfProtocol           -> mkObject [ "kind" .= A.String "EndOfProtocol" ]
-    KThxBye                 -> mkObject [ "kind" .= A.String "KThxBye" ]
     ReqTxs          req     -> mkObject [ "kind" .= A.String "ReqTxs"
                                         , "req"  .= A.toJSON req ]
     TxList          sent    -> mkObject [ "kind" .= A.String "TxList"

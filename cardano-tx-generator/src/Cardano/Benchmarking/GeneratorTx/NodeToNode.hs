@@ -86,7 +86,7 @@ benchmarkConnectTxSubmit ioManager handshakeTracer submissionTracer codecConfig 
   supportedVers = supportedNodeToNodeVersions (Proxy @blk)
   myCodecs :: Codecs blk DeserialiseFailure IO
                 ByteString ByteString ByteString ByteString ByteString ByteString ByteString
-  myCodecs  = defaultCodecs codecConfig blkN2nVer
+  myCodecs  = defaultCodecs codecConfig blkN2nVer n2nVer
   peerMultiplex =
     simpleSingletonVersions
       n2nVer
