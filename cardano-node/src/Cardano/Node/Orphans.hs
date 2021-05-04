@@ -26,7 +26,6 @@ import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Compactible as Ledger
 import qualified Cardano.Ledger.Mary.Value as Mary
 import qualified Data.MemoBytes as MemoBytes
@@ -63,7 +62,7 @@ deriving instance ToJSONKey SBS.ShortByteString
 deriving instance ToJSONKey ByteString
 deriving instance ToJSONKey Alonzo.Language
 deriving instance ToJSON Alonzo.CostModel
-
+deriving instance ToJSON (MemoBytes.MemoBytes (Map Text Integer))
 
 deriving instance ToJSON (Alonzo.TxOut (Alonzo.AlonzoEra StandardCrypto))
 

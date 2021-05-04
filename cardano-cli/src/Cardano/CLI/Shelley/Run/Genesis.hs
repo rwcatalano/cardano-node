@@ -17,8 +17,10 @@ module Cardano.CLI.Shelley.Run.Genesis
 import           Cardano.Prelude
 import           Prelude (id)
 
+import           Data.Aeson
 import qualified Data.Aeson as Aeson
 import           Data.Aeson.Encode.Pretty (encodePretty)
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.Binary.Get as Bin
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
@@ -59,11 +61,14 @@ import           Ouroboros.Consensus.Shelley.Eras (StandardShelley)
 import           Ouroboros.Consensus.Shelley.Node (ShelleyGenesisStaking (..))
 import           Ouroboros.Consensus.Shelley.Protocol (StandardCrypto)
 
+import qualified Cardano.Ledger.Alonzo.Language as Alonzo
+import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Translation as Alonzo
-import           Cardano.Ledger.Alonzo.Translation (AlonzoGenesis(..))
+import           Cardano.Ledger.Coin (Coin (..))
+import qualified Plutus.V1.Ledger.Api as Plutus
+import qualified PlutusCore.Evaluation.Machine.ExBudgeting as Plutus
 import qualified Shelley.Spec.Ledger.API as Ledger
 import qualified Shelley.Spec.Ledger.BaseTypes as Ledger
-import           Cardano.Ledger.Coin (Coin (..))
 import qualified Shelley.Spec.Ledger.Keys as Ledger
 import qualified Shelley.Spec.Ledger.PParams as Shelley
 
@@ -97,6 +102,7 @@ data ShelleyGenesisCmdError
   | ShelleyGenesisCmdNodeCmdError !ShelleyNodeCmdError
   | ShelleyGenesisCmdPoolCmdError !ShelleyPoolCmdError
   | ShelleyGenesisCmdStakeAddressCmdError !ShelleyStakeAddressCmdError
+  | ShelleyGenesisCmdCostModelsError !FilePath
   deriving Show
 
 renderShelleyGenesisCmdError :: ShelleyGenesisCmdError -> Text
@@ -131,7 +137,8 @@ renderShelleyGenesisCmdError err =
     ShelleyGenesisCmdNodeCmdError e -> renderShelleyNodeCmdError e
     ShelleyGenesisCmdPoolCmdError e -> renderShelleyPoolCmdError e
     ShelleyGenesisCmdStakeAddressCmdError e -> renderShelleyStakeAddressCmdError e
-
+    ShelleyGenesisCmdCostModelsError fp ->
+      "Cost model is invalid: " <> Text.pack fp
 
 runGenesisCmd :: GenesisCmd -> ExceptT ShelleyGenesisCmdError IO ()
 runGenesisCmd (GenesisKeyGenGenesis vk sk) = runGenesisKeyGenGenesis vk sk
@@ -934,33 +941,39 @@ runGenesisHashFile (GenesisFile fpath) = do
 readAlonzoGenesis
   :: FilePath
   -> ExceptT ShelleyGenesisCmdError IO Alonzo.AlonzoGenesis
-readAlonzoGenesis fpath =
+readAlonzoGenesis fpath = do
   alonzoGenWrapper <- readAndDecode
                        `catchError` \err ->
                          case err of
                            ShelleyGenesisCmdGenesisFileError (FileIOError _ ioe)
-                             | isDoesNotExistError ioe -> error "Shelley genesis file not found. TODO: Setup defaults"
+                             | isDoesNotExistError ioe -> panic "Shelley genesis file not found."
                            _                           -> left err
   createAlonzoGenesis alonzoGenWrapper
 
  where
-  readAndDecode :: ExceptT ShelleyGenesisCmdAddressCmdError IO AlonzoGenWrapper
+  readAndDecode :: ExceptT ShelleyGenesisCmdError IO AlonzoGenWrapper
   readAndDecode = do
       lbs <- handleIOExceptT (ShelleyGenesisCmdGenesisFileError . FileIOError fpath) $ LBS.readFile fpath
       firstExceptT (ShelleyGenesisCmdAesonDecodeError fpath . Text.pack)
         . hoistEither $ Aeson.eitherDecode' lbs
 
 
-createAlonzoGenesis :: AlonzoGenWrapper -> ExceptT ShelleyGenesisCmdAddressCmdError IO Alonzo.Genesis
-createAlonzoGenesis (AlonzoGenWrapper costModelFp alonzoGenesis) = do
+createAlonzoGenesis
+  :: AlonzoGenWrapper
+  -> ExceptT ShelleyGenesisCmdError IO Alonzo.AlonzoGenesis
+createAlonzoGenesis (AlonzoGenWrapper costModelFp' alonzoGenesis) = do
   costModel <- readAndDecode
-  alonzoGenesis { Alonzo.costmdls = costModel }
+  case Plutus.extractModelParams costModel of
+    Just m -> if Plutus.validateCostModelParams m
+              then left $ ShelleyGenesisCmdCostModelsError costModelFp'
+              else return $ alonzoGenesis { Alonzo.costmdls = Map.singleton Alonzo.PlutusV1 $ Alonzo.CostModel m }
 
+    Nothing -> panic ""
  where
-  readAndDecode :: ExceptT ShelleyGenesisCmdAddressCmdError IO CostModel
+  readAndDecode :: ExceptT ShelleyGenesisCmdError IO Plutus.CostModel
   readAndDecode = do
-      lbs <- handleIOExceptT (ShelleyGenesisCmdGenesisFileError . FileIOError fpath) $ LBS.readFile costModelFp
-      firstExceptT (ShelleyGenesisCmdAesonDecodeError fpath . Text.pack)
+      lbs <- handleIOExceptT (ShelleyGenesisCmdGenesisFileError . FileIOError costModelFp') $ LBS.readFile costModelFp'
+      firstExceptT (ShelleyGenesisCmdAesonDecodeError costModelFp' . Text.pack)
         . hoistEither $ Aeson.eitherDecode' lbs
 
 
@@ -970,7 +983,7 @@ data AlonzoGenWrapper =
                    }
 
 instance FromJSON AlonzoGenWrapper where
-  parseJSON = withObject "Alonzo Genesis Wrapper" $ \o ->
+  parseJSON = withObject "Alonzo Genesis Wrapper" $ \o -> do
                 -- NB: This has an empty map for the cost model
                 alonzoGenensis <- parseJSON o :: Aeson.Parser Alonzo.AlonzoGenesis
                 cModelFp <- o .: "alonzoCostModel"
@@ -979,21 +992,3 @@ instance FromJSON AlonzoGenWrapper where
                            , genesis = alonzoGenensis
                            }
 
--- We defer parsing of the cost model so that we can
--- read it as a filepath. This is to reduce further pollution
--- of the genesis file.
-instance FromJSON Alonzo.AlonzoGenesis where
-  parseJSON = withObject "Alonzo Genesis" $ \o -> do
-    adaPerWord <- "alonzoAdaPerUTxOWord" .: o
-    execPrices <- "alonzoExecutionPrices" .: o
-    maxTxExUnits <- "alonzoMaxTxExUnits" .: o
-    maxBlockExUnits <- "alonzoMaxBlockExUnits" .: o
-    maxMaSize <- "alonzoMaxMultiAssetSize" .: o
-    return $ Alonzo.AlonzoGenesis
-               { adaPerUTxOWord = adaPerWord
-               , costmdls = mempty
-               , prices = execPrices
-               , maxTxExUnits = maxTxExUnits
-               , maxBlockExUnits = maxBlockExUnits
-               , maxValSize = maxMaSize
-               }
