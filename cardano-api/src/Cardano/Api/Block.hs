@@ -66,6 +66,9 @@ import qualified Ouroboros.Consensus.Shelley.ShelleyHFC as Consensus
 import qualified Cardano.Chain.Block as Byron
 import qualified Cardano.Chain.UTxO as Byron
 
+import qualified Cardano.Ledger.Core as Core
+import qualified Cardano.Ledger.Era as Ledger
+import           Cardano.Ledger.SafeHash (SafeToHash)
 import qualified Shelley.Spec.Ledger.BlockChain as Shelley
 
 import           Cardano.Api.Eras
@@ -150,7 +153,9 @@ getBlockTxs (ShelleyBlock shelleyEra Consensus.ShelleyBlock{Consensus.shelleyBlo
       ShelleyBasedEraAlonzo  ->
         error "getBlockTxs: Alonzo era not implemented yet"
   where
-    go :: Consensus.ShelleyBasedEra (ShelleyLedgerEra era) => [Tx era]
+    go :: Ledger.TxSeq (ShelleyLedgerEra era) ~ Shelley.TxSeq (ShelleyLedgerEra era)
+       => SafeToHash (Core.Witnesses (ShelleyLedgerEra era))
+       => Consensus.ShelleyBasedEra (ShelleyLedgerEra era) => [Tx era]
     go = case shelleyBlockRaw of Shelley.Block _header (Shelley.TxSeq txs) -> [ShelleyTx shelleyEra x | x <- toList txs]
 
 -- ----------------------------------------------------------------------------

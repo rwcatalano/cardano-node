@@ -770,6 +770,8 @@ fromShelleyBasedScript era script =
       ScriptInEra SimpleScriptV2InMary $
       SimpleScript SimpleScriptV2 $
       fromAllegraTimelock TimeLocksInSimpleScriptV2 script
+    ShelleyBasedEraAlonzo ->
+      error "fromShelleyBasedScript: Alonzo era not implemented yet"
 
 
 -- | Conversion for the 'Shelley.MultiSig' language used by the Shelley era.
