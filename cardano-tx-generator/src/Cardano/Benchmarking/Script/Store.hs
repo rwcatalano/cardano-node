@@ -26,14 +26,16 @@ import           Cardano.Benchmarking.OuroborosImports as Cardano
                     ( LoggingLayer, ShelleyGenesis, StandardShelley
                     , NetworkId, SigningKey, PaymentKey)
 
-import           Cardano.Benchmarking.Tracer as Core (BenchTracers)
 import           Cardano.Benchmarking.GeneratorTx as Core (AsyncBenchmarkControl)
 import qualified Cardano.Benchmarking.GeneratorTx.Tx as Core (Fund)
+import           Cardano.Benchmarking.Tracer as Core (BenchTracers)
+import           Cardano.Benchmarking.Wallet as Wallet
 
 type Fund = (Core.Fund, SigningKey PaymentKey)
 
 data Store v where
   User         :: Setters.Tag x -> Store x
+  GlobalWallet :: Store WalletRef
   LoggingLayer :: Store LoggingLayer
   Protocol     :: Store SomeConsensusProtocol
   BenchTracers :: Store Core.BenchTracers

@@ -22,22 +22,12 @@ library
                         -Wpartial-fields
                         -Wredundant-constraints
                         -Wwarn=deprecations
-                        
+
   exposed-modules:
                        Cardano.Benchmarking.CliArgsScript
                        Cardano.Benchmarking.Command
                        Cardano.Benchmarking.DSL
-                       Cardano.Benchmarking.OuroborosImports
-                       Cardano.Benchmarking.Script
-                       Cardano.Benchmarking.Script.Action
-                       Cardano.Benchmarking.Script.Aeson
-                       Cardano.Benchmarking.Script.Core
-                       Cardano.Benchmarking.Script.Env
-                       Cardano.Benchmarking.Script.Example
-                       Cardano.Benchmarking.Script.Setters
-                       Cardano.Benchmarking.Script.Store
-                       Cardano.Benchmarking.Tracer
-                       Cardano.Benchmarking.Types
+                       Cardano.Benchmarking.FundSet
                        Cardano.Benchmarking.GeneratorTx
                        Cardano.Benchmarking.GeneratorTx.Benchmark
                        Cardano.Benchmarking.GeneratorTx.Error
@@ -49,6 +39,18 @@ library
                        Cardano.Benchmarking.GeneratorTx.Tx.Byron
                        Cardano.Benchmarking.GeneratorTx.Submission
                        Cardano.Benchmarking.GeneratorTx.CLI.Parsers
+                       Cardano.Benchmarking.OuroborosImports
+                       Cardano.Benchmarking.Script
+                       Cardano.Benchmarking.Script.Action
+                       Cardano.Benchmarking.Script.Aeson
+                       Cardano.Benchmarking.Script.Core
+                       Cardano.Benchmarking.Script.Env
+                       Cardano.Benchmarking.Script.Example
+                       Cardano.Benchmarking.Script.Setters
+                       Cardano.Benchmarking.Script.Store
+                       Cardano.Benchmarking.Tracer
+                       Cardano.Benchmarking.Types
+                       Cardano.Benchmarking.Wallet                       
 
   other-modules:       Paths_cardano_tx_generator
 
@@ -79,6 +81,7 @@ library
                      , ghc-prim
                      , io-sim-classes
                      , iohk-monitoring
+                     , ixset-typed
                      , network
                      , network-mux
                      , optparse-applicative

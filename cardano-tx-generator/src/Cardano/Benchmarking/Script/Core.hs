@@ -24,11 +24,16 @@ import           Control.Concurrent (threadDelay)
 import           Cardano.Api ( AsType(..), CardanoEra(..), InAnyCardanoEra(..), AnyCardanoEra(..), IsShelleyBasedEra, Tx
                              , NetworkId(..), cardanoEra
                              , CardanoMode, LocalNodeConnectInfo
+                             , SigningKey
+                             , PaymentKey
                              , getLocalChainTip, queryNodeLocalState, QueryInMode( QueryCurrentEra), ConsensusModeIsMultiEra( CardanoModeIsMultiEra )
                              , chainTipToChainPoint )
+
+import qualified Cardano.Benchmarking.FundSet as FundSet
+import           Cardano.Benchmarking.FundSet (FundInEra(..), Validity(..), liftAnyEra )
 import           Cardano.Benchmarking.GeneratorTx as Core
                    (AsyncBenchmarkControl, asyncBenchmark, waitBenchmark, readSigningKey, secureGenesisFund, splitFunds, txGenerator, TxGenError)
-import           Cardano.Benchmarking.Types as Core (NumberOfTxs(..), SubmissionErrorPolicy(..), TPSRate)
+
 import           Cardano.Benchmarking.GeneratorTx.Tx as Core (keyAddress)
 import           Cardano.Benchmarking.GeneratorTx.LocalProtocolDefinition as Core (startProtocol)
 import           Cardano.Benchmarking.GeneratorTx.NodeToNode (ConnectClient, benchmarkConnectTxSubmit)
@@ -36,6 +41,8 @@ import           Cardano.Benchmarking.OuroborosImports as Core
                    (LocalSubmitTx, SigningKeyFile
                    , getGenesis, protocolToNetworkId, protocolToCodecConfig, makeLocalConnectInfo, submitTxToNodeLocal)
 import           Cardano.Benchmarking.Tracer as Core (createTracers, btTxSubmit_, btN2N_, btConnect_, btSubmission_)
+import           Cardano.Benchmarking.Types as Core (NumberOfTxs(..), SubmissionErrorPolicy(..), TPSRate)
+import           Cardano.Benchmarking.Wallet
 
 import           Cardano.Benchmarking.Script.Env
 import           Cardano.Benchmarking.Script.Setters
@@ -95,7 +102,23 @@ secureGenesisFund fundName destKey genesisKeyName = do
       return (f, fundKey)
   liftCoreWithEra coreCall >>= \case
     Left err -> liftTxGenError err
-    Right fund -> setName fundName fund
+    Right fund -> do
+      -- Todo : user only of two methods
+      setName fundName fund -- Old method
+      initGlobalWallet networkId fundKey fund   -- New method 
+
+initGlobalWallet :: NetworkId -> SigningKey PaymentKey -> Fund -> ActionM ()
+initGlobalWallet networkId key ((txIn, outVal), skey) = do
+  wallet <- liftIO $ initWallet networkId key
+  liftIO (walletRefInsertFund wallet (FundSet.Fund $ mkFund outVal))
+  set GlobalWallet wallet
+ where
+  mkFund = liftAnyEra $ \value -> FundInEra {
+    _fundTxIn = txIn
+  , _fundVal = value
+  , _fundSigningKey = skey
+  , _fundValidity = Confirmed
+  }
 
 splitFundN
    :: NumberOfTxs
